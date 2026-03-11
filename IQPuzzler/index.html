@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IQ Puzzler Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:#2a3a55;--accent:#00d4ff;--accent2:#7c3aed;--text:#e2e8f0;--text-dim:#64748b;--glow:0 0 20px rgba(0,212,255,0.3);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 20%,rgba(124,58,237,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,212,255,0.06) 0%,transparent 60%);min-height:100vh;font-family:'Rajdhani',sans-serif;color:var(--text);display:flex;flex-direction:column;align-items:center;padding:20px;}
+header{text-align:center;margin-bottom:20px;}
+header h1{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;background:linear-gradient(135deg,#00d4ff,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+header p{color:var(--text-dim);font-size:0.8rem;letter-spacing:0.2em;text-transform:uppercase;margin-top:4px;}
+.layout{display:grid;grid-template-columns:185px 1fr 155px;gap:18px;width:100%;max-width:980px;align-items:start;}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 4px 24px rgba(0,0,0,0.4);}
+.panel-title{font-family:'Orbitron',monospace;font-size:0.58rem;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);}
+.fig-list{display:flex;flex-direction:column;gap:7px;}
+.fig-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;transition:all 0.2s;}
+.fig-card:hover{border-color:var(--accent);box-shadow:var(--glow);}
+.fig-card.selected{border-color:var(--accent);box-shadow:var(--glow);background:rgba(0,212,255,0.08);}
+.fig-card.placed{opacity:0.3;pointer-events:none;}
+.fig-name{font-family:'Orbitron',monospace;font-size:0.52rem;color:var(--text-dim);margin-bottom:5px;letter-spacing:0.08em;}
+.board-wrap{display:flex;justify-content:center;}
+#boardCanvas{border-radius:10px;display:block;cursor:crosshair;}
+.controls{display:flex;flex-direction:column;gap:10px;}
+.btn{width:100%;padding:10px 8px;border:1px solid;border-radius:8px;font-family:'Orbitron',monospace;font-size:0.56rem;letter-spacing:0.1em;cursor:pointer;transition:all 0.2s;text-transform:uppercase;font-weight:700;}
+.btn-solve{background:linear-gradient(135deg,rgba(0,212,255,0.15),rgba(124,58,237,0.15));border-color:var(--accent);color:var(--accent);}
+.btn-solve:hover{background:linear-gradient(135deg,rgba(0,212,255,0.3),rgba(124,58,237,0.3));box-shadow:var(--glow);}
+.btn-hint{background:rgba(124,58,237,0.15);border-color:var(--accent2);color:#a78bfa;}
+.btn-hint:hover{background:rgba(124,58,237,0.3);}
+.btn-clear{background:rgba(100,116,139,0.1);border-color:var(--border);color:var(--text-dim);}
+.btn-clear:hover{border-color:#ef4444;color:#ef4444;}
+.rot-row{display:flex;gap:6px;margin-bottom:6px;}
+.btn-rot{flex:1;padding:8px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:'Orbitron',monospace;font-size:0.52rem;cursor:pointer;transition:all 0.15s;}
+.btn-rot:hover{border-color:var(--accent);color:var(--accent);}
+.status-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.75rem;color:var(--text-dim);line-height:1.6;min-height:54px;}
+.status-title{font-family:'Orbitron',monospace;font-size:0.52rem;color:var(--accent);letter-spacing:0.1em;margin-bottom:3px;}
+.hint-c{font-family:'Orbitron',monospace;font-size:0.5rem;color:var(--accent2);margin-left:4px;}
+.kbd-hint{font-size:0.68rem;color:var(--text-dim);text-align:center;margin-top:8px;line-height:1.8;}
+kbd{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:0.7rem;color:var(--text);}
+</style>
+</head>
+<body>
+<header>
+  <h1>IQ Puzzler Pro</h1>
+  <p>3D Piece Placement — 5 × 10 Board</p>
+</header>
+<div class="layout">
+  <div class="panel"><div class="panel-title">Pieces</div><div class="fig-list" id="figList"></div></div>
+  <div class="panel">
+    <div class="panel-title">Board — 5 × 10</div>
+    <div class="board-wrap"><canvas id="boardCanvas"></canvas></div>
+    <div class="kbd-hint"><kbd>R</kbd> rotate &nbsp;<kbd>F</kbd> flip &nbsp;<kbd>Esc</kbd> deselect</div>
+  </div>
+  <div class="controls">
+    <div class="panel">
+      <div class="panel-title">Orientation</div>
+      <div class="rot-row">
+        <button class="btn-rot" onclick="doRot('X+')">X↻</button>
+        <button class="btn-rot" onclick="doRot('Y+')">Y↻</button>
+        <button class="btn-rot" onclick="doRot('Z+')">Z↻</button>
+      </div>
+      <div class="rot-row">
+        <button class="btn-rot" onclick="doRot('X-')">X↺</button>
+        <button class="btn-rot" onclick="doRot('Y-')">Y↺</button>
+        <button class="btn-rot" onclick="doRot('Z-')">Z↺</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Actions</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-solve" onclick="doSolve()">⚡ Solve</button>
+        <button class="btn btn-hint" onclick="doHint()">💡 Hint <span class="hint-c" id="hintC">0/10</span></button>
+        <button class="btn btn-clear" onclick="doClear()">↺ Clear</button>
+      </div>
+    </div>
+    <div class="panel"><div class="panel-title">Status</div><div class="status-box" id="statusBox"><div class="status-title">Ready</div>Select a piece then click the board.</div></div>
+  </div>
+</div>
+<script>
+const ROWS=5,COLS=10;
+const PIECES=[
+  {name:'Yellow',  color:'#f59e0b', cells:[[0,0,0],[1,0,0],[2,0,0],[3,0,0],[2,1,0],[3,1,0],[0,0,1]]},
+  {name:'Red',     color:'#ef4444', cells:[[0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,1,0],[3,1,0],[3,0,1]]},
+  {name:'Blue',    color:'#3b82f6', cells:[[0,0,0],[1,0,0],[2,0,0],[0,1,0],[2,1,0],[1,0,1]]},
+  {name:'Green',   color:'#22c55e', cells:[[0,0,0],[1,0,0],[2,0,0],[0,1,0],[2,1,0],[2,0,1]]},
+  {name:'Orange',  color:'#f97316', cells:[[0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,1,0],[2,1,0],[2,0,1]]},
+  {name:'Violet',  color:'#8b5cf6', cells:[[0,0,0],[1,0,0],[2,0,0],[1,1,0],[2,1,0],[0,0,1]]},
+  {name:'Pink',    color:'#ec4899', cells:[[0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,1,0],[1,1,0],[1,0,1]]},
+  {name:'LtBlue',  color:'#06b6d4', cells:[[0,0,0],[1,0,0],[2,0,0],[3,0,0],[1,1,0],[3,1,0],[3,0,1]]},
+  {name:'DkGreen', color:'#16a34a', cells:[[0,0,0],[1,0,0],[2,0,0],[0,1,0],[1,1,0],[1,0,1]]},
+  {name:'SkyBlue', color:'#38bdf8', cells:[[0,0,0],[1,0,0],[2,0,0],[3,0,0],[1,1,0],[2,1,0],[2,0,1]]},
+];
+
+// ── 3D rotation helpers ──
+function norm(s){const mn=[0,1,2].map(i=>Math.min(...s.map(p=>p[i])));return s.map(p=>[p[0]-mn[0],p[1]-mn[1],p[2]-mn[2]]);}
+const ROTFNS={
+  'X+':p=>[p[0],-p[2],p[1]],
+  'X-':p=>[p[0],p[2],-p[1]],
+  'Y+':p=>[p[2],p[1],-p[0]],
+  'Y-':p=>[-p[2],p[1],p[0]],
+  'Z+':p=>[-p[1],p[0],p[2]],
+  'Z-':p=>[p[1],-p[0],p[2]],
+};
+function applyRot(cells,axis){return norm(cells.map(ROTFNS[axis]));}
+function k3(s){return norm(s).map(p=>p.join(',')).sort().join('|');}
+
+// Valid orientation: z<=1 AND every z=1 ball shares (x,y) with a z=0 ball
+function isValid(s){
+  const maxZ=Math.max(...s.map(p=>p[2]));
+  if(maxZ>1) return false;
+  const z0xy=new Set(s.filter(p=>p[2]===0).map(([x,y])=>x+','+y));
+  return s.filter(p=>p[2]===1).every(([x,y])=>z0xy.has(x+','+y));
+}
+
+function allValidOrientations(cells){
+  const seen=new Set(),result=[];
+  const rotAxes=['X+','Y+','Z+'];
+  const queue=[norm(cells)];
+  while(queue.length){
+    const s=queue.shift(),k=k3(s);
+    if(seen.has(k))continue; seen.add(k);
+    if(isValid(s)) result.push(s);
+    for(const ax of rotAxes) queue.push(applyRot(s,ax));
+  }
+  return result;
+}
+
+// Coverage = z=0 cells only
+function coverage(orient){return orient.filter(([,,z])=>z===0).map(([x,y])=>[x,y]);}
+
+// ── Board state ──
+const board=Array.from({length:ROWS},()=>Array(COLS).fill(-1));
+const placed=new Array(10).fill(false);
+let selPiece=-1;
+let cur3d=PIECES.map(p=>p.cells.map(c=>[...c]));
+let solution=null, hintStep=0;
+let hoverCell=null;
+
+// ── Canvas ──
+const cv=document.getElementById('boardCanvas');
+const ctx=cv.getContext('2d');
+const CELL=56,PAD=16,BR=20;
+cv.width=COLS*CELL+PAD*2; cv.height=ROWS*CELL+PAD*2;
+
+function cellCenter(col,row){return[PAD+col*CELL+CELL/2,PAD+row*CELL+CELL/2];}
+
+function shade(hex,pct){
+  const n=parseInt(hex.replace('#',''),16),a=Math.round(2.55*pct);
+  const r=Math.min(255,Math.max(0,(n>>16)+a));
+  const g=Math.min(255,Math.max(0,((n>>8)&0xff)+a));
+  const b=Math.min(255,Math.max(0,(n&0xff)+a));
+  return'#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+function drawBall(cx,cy,r,color,alpha=1,elevated=false){
+  ctx.save(); ctx.globalAlpha=alpha;
+  if(elevated){cy-=r*0.4;}
+  const g=ctx.createRadialGradient(cx-r*0.32,cy-r*0.32,r*0.08,cx,cy,r);
+  g.addColorStop(0,'rgba(255,255,255,0.65)');
+  g.addColorStop(0.35,color);
+  g.addColorStop(1,shade(color,-55));
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.fillStyle=g;
+  if(elevated){ctx.shadowColor=color;ctx.shadowBlur=14;}
+  ctx.fill();
+  if(elevated){
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1.5;ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function rrect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+
+function drawBoard(){
+  ctx.fillStyle='#0d1220';
+  rrect(0,0,cv.width,cv.height,12); ctx.fill();
+  ctx.strokeStyle='rgba(30,58,95,0.3)';ctx.lineWidth=1;
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(PAD,PAD+r*CELL);ctx.lineTo(PAD+COLS*CELL,PAD+r*CELL);ctx.stroke();}
+  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(PAD+c*CELL,PAD);ctx.lineTo(PAD+c*CELL,PAD+ROWS*CELL);ctx.stroke();}
+
+  for(let row=0;row<ROWS;row++) for(let col=0;col<COLS;col++){
+    const[cx,cy]=cellCenter(col,row);
+    ctx.beginPath();ctx.arc(cx,cy,BR+3,0,Math.PI*2);ctx.fillStyle='#060a14';ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy,BR,0,Math.PI*2);
+    const hg=ctx.createRadialGradient(cx,cy,3,cx,cy,BR);
+    hg.addColorStop(0,'#1a2235');hg.addColorStop(1,'#0a0f1e');
+    ctx.fillStyle=hg;ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy,BR,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,212,255,0.08)';ctx.lineWidth=1;ctx.stroke();
+  }
+
+  // Draw placed pieces — z=0 flat, z=1 elevated
+  for(let row=0;row<ROWS;row++) for(let col=0;col<COLS;col++){
+    const pid=board[row][col];
+    if(pid>=0){
+      const[cx,cy]=cellCenter(col,row);
+      // z=0 ball
+      drawBall(cx,cy,BR,PIECES[pid].color,1,false);
+      // z=1 elevated ball if exists in this orientation at this cell
+      const orient=cur3d[pid]; // stored orient when placed
+      // just show flat for placed pieces (orientation info not stored per cell easily)
+    }
+  }
+
+  // Ghost preview
+  if(selPiece>=0&&hoverCell){
+    const[hc,hr]=hoverCell;
+    const cov=coverage(norm(cur3d[selPiece]));
+    if(cov.length>0){
+      const maxX=Math.max(...cov.map(([x])=>x)),maxY=Math.max(...cov.map(([,y])=>y));
+      const ox=Math.max(0,Math.min(hc,COLS-1-maxX));
+      const oy=Math.max(0,Math.min(hr,ROWS-1-maxY));
+      let ok=true;
+      for(const[x,y] of cov) if(board[oy+y][ox+x]>=0){ok=false;break;}
+      for(const[x,y] of cov){
+        const[cx,cy]=cellCenter(ox+x,oy+y);
+        drawBall(cx,cy,BR,PIECES[selPiece].color,ok?0.6:0.2);
+      }
+    }
+  }
+}
+
+// ── Piece preview canvas — isometric 3D ──
+function drawPreview(canv,pid){
+  const cells=norm(PIECES[pid].cells);
+  // Isometric projection: x right-down, y left-down, z up
+  const S=14;       // grid step in iso space
+  const ISO_X=S;    // iso x step → screen (+x, +y*0.5)
+  const ISO_Y=S*0.6;// iso y step → screen (-x*0.5, +y*0.5)
+  const LIFT=S*1.1; // z=1 lifts up by this amount
+  const R=6;        // ball radius
+  const PAD=10;
+
+  // Compute screen positions for all balls
+  function isoPos(x,y,z){
+    const sx= x*ISO_X - y*ISO_X*0.5;
+    const sy= x*ISO_Y*0.5 + y*ISO_Y - z*LIFT;
+    return[sx,sy];
+  }
+
+  // Find bounding box
+  let minSx=Infinity,maxSx=-Infinity,minSy=Infinity,maxSy=-Infinity;
+  cells.forEach(([x,y,z])=>{
+    const[sx,sy]=isoPos(x,y,z);
+    minSx=Math.min(minSx,sx-R); maxSx=Math.max(maxSx,sx+R);
+    minSy=Math.min(minSy,sy-R); maxSy=Math.max(maxSy,sy+R);
+  });
+  canv.width =Math.ceil(maxSx-minSx)+PAD*2;
+  canv.height=Math.ceil(maxSy-minSy)+PAD*2;
+  const c=canv.getContext('2d');
+  c.clearRect(0,0,canv.width,canv.height);
+
+  const color=PIECES[pid].color;
+
+  // Draw shadow for z=1 balls first
+  cells.filter(([,,z])=>z===1).forEach(([x,y])=>{
+    const[sx,sy]=isoPos(x,y,0);
+    const cx=sx-minSx+PAD, cy=sy-minSy+PAD;
+    c.save();
+    c.beginPath();c.ellipse(cx,cy+R*0.3,R*0.7,R*0.22,0,0,Math.PI*2);
+    c.fillStyle='rgba(0,0,0,0.35)';c.fill();
+    c.restore();
+  });
+
+  // Sort balls: paint z=0 first, then z=1 on top
+  const sorted=[...cells].sort((a,b)=>a[2]-b[2]);
+
+  sorted.forEach(([x,y,z])=>{
+    const[sx,sy]=isoPos(x,y,z);
+    const cx=sx-minSx+PAD, cy=sy-minSy+PAD;
+    const r=z===1?R*0.92:R;
+
+    // Subtle connection line from z=1 down to z=0
+    if(z===1){
+      const[bx,by]=isoPos(x,y,0);
+      const bcx=bx-minSx+PAD, bcy=by-minSy+PAD;
+      c.save();
+      c.beginPath();c.moveTo(cx,cy+r);c.lineTo(bcx,bcy-R*0.6);
+      c.strokeStyle='rgba(255,255,255,0.15)';c.lineWidth=1.5;c.stroke();
+      c.restore();
+    }
+
+    // Ball gradient
+    const g=c.createRadialGradient(cx-r*0.35,cy-r*0.35,r*0.05,cx,cy,r);
+    g.addColorStop(0,'rgba(255,255,255,0.75)');
+    g.addColorStop(0.3,color);
+    g.addColorStop(1,shade(color,-60));
+
+    c.save();
+    if(z===1){c.shadowColor=color;c.shadowBlur=8;}
+    c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
+    c.fillStyle=g;c.fill();
+
+    // Rim for elevated ball
+    if(z===1){
+      c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
+      c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=1;c.stroke();
+    }
+    c.restore();
+  });
+}
+
+function buildFigList(){
+  const list=document.getElementById('figList'); list.innerHTML='';
+  PIECES.forEach((p,i)=>{
+    const card=document.createElement('div'); card.className='fig-card'; card.id='c'+i;
+    const nm=document.createElement('div'); nm.className='fig-name'; nm.textContent=p.name;
+    const prev=document.createElement('canvas'); prev.id='p'+i;
+    card.append(nm,prev); drawPreview(prev,i);
+    card.onclick=()=>selectPiece(i);
+    list.appendChild(card);
+  });
+}
+
+// ── Interaction ──
+cv.addEventListener('mousemove',e=>{
+  const rc=cv.getBoundingClientRect();
+  const col=Math.floor((e.clientX-rc.left-PAD)/CELL),row=Math.floor((e.clientY-rc.top-PAD)/CELL);
+  hoverCell=(col>=0&&col<COLS&&row>=0&&row<ROWS)?[col,row]:null;
+  drawBoard();
+});
+cv.addEventListener('mouseleave',()=>{hoverCell=null;drawBoard();});
+cv.addEventListener('click',e=>{
+  if(selPiece<0) return;
+  const rc=cv.getBoundingClientRect();
+  const col=Math.floor((e.clientX-rc.left-PAD)/CELL),row=Math.floor((e.clientY-rc.top-PAD)/CELL);
+  if(col<0||col>=COLS||row<0||row>=ROWS) return;
+  const cov=coverage(norm(cur3d[selPiece]));
+  const maxX=Math.max(...cov.map(([x])=>x)),maxY=Math.max(...cov.map(([,y])=>y));
+  const ox=Math.max(0,Math.min(col,COLS-1-maxX)),oy=Math.max(0,Math.min(row,ROWS-1-maxY));
+  for(const[x,y] of cov) if(board[oy+y][ox+x]>=0){setStatus('ERROR','Cell occupied!\nTry another spot.');return;}
+  for(const[x,y] of cov) board[oy+y][ox+x]=selPiece;
+  placed[selPiece]=true;
+  selPiece=-1;
+  refreshCards(); drawBoard();
+  const n=placed.filter(Boolean).length;
+  document.getElementById('hintC').textContent=n+'/10';
+  if(placed.every(Boolean)) setStatus('🎉 SOLVED!','All pieces placed!\nPuzzle complete!');
+  else setStatus('PLACED','Piece placed!\nSelect next piece.');
+});
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='r'||e.key==='R') doRot('Z+');
+  if(e.key==='f'||e.key==='F') doRot('X+');
+  if(e.key==='Escape'){selPiece=-1;refreshCards();setStatus('READY','Deselected.');drawBoard();}
+});
+
+function selectPiece(i){
+  if(placed[i]) return;
+  selPiece=i;
+  refreshCards();
+  setStatus('SELECTED',PIECES[i].name+'\nClick board to place.\nR=rotate  F=flip');
+  drawBoard();
+}
+
+function doRot(axis){
+  if(selPiece<0) return;
+  // Find next valid orientation by rotating
+  let next=applyRot(cur3d[selPiece],axis);
+  // If not valid, keep rotating until valid or full cycle
+  let tries=0;
+  while(!isValid(next)&&tries<12){next=applyRot(next,axis);tries++;}
+  if(isValid(next)) cur3d[selPiece]=next;
+  drawBoard();
+}
+
+function refreshCards(){
+  PIECES.forEach((_,i)=>{
+    const c=document.getElementById('c'+i);
+    c.classList.toggle('selected',i===selPiece);
+    c.classList.toggle('placed',placed[i]);
+  });
+}
+
+function setStatus(title,msg){
+  document.getElementById('statusBox').innerHTML=`<div class="status-title">${title}</div>${msg.replace(/\n/g,'<br>')}`;
+}
+
+// ── Solver ──
+function buildRows(boardState,placedState){
+  const rows=[];
+  for(let pid=0;pid<PIECES.length;pid++){
+    if(placedState[pid]) continue;
+    const fpSeen=new Set();
+    for(const orient of allValidOrientations(PIECES[pid].cells)){
+      const cov=coverage(orient);
+      const fk=cov.map(([x,y])=>x+','+y).sort().join('|');
+      if(fpSeen.has(fk)) continue; fpSeen.add(fk);
+      const maxX=Math.max(...cov.map(([x])=>x)),maxY=Math.max(...cov.map(([,y])=>y));
+      for(let oy=0;oy<=ROWS-1-maxY;oy++) for(let ox=0;ox<=COLS-1-maxX;ox++){
+        let ok=true; const cols=new Set();
+        for(const[x,y] of cov){
+          if(boardState[oy+y][ox+x]>=0){ok=false;break;}
+          cols.add((oy+y)*COLS+(ox+x));
+        }
+        if(ok){cols.add(ROWS*COLS+pid);rows.push({pid,ox,oy,cov,orient,cols:Array.from(cols).sort((a,b)=>a-b).join(',')});}
+      }
+    }
+  }
+  return rows;
+}
+
+function solve(boardState,placedState){
+  const rows=buildRows(boardState,placedState);
+  const c2r={};
+  rows.forEach((r,i)=>r.cols.split(',').forEach(c=>{if(!c2r[c])c2r[c]=[];c2r[c].push(i);}));
+  const sol=[];
+  function search(ac,ar){
+    if(!ac.size) return true;
+    let bc=null,bs=Infinity;
+    for(const c of ac){const sz=(c2r[c]||[]).filter(r=>ar.has(r)).length;if(sz<bs){bs=sz;bc=c;}if(sz===0)return false;}
+    for(const r of(c2r[bc]||[]).filter(r=>ar.has(r))){
+      const rc=new Set(rows[r].cols.split(','));
+      const el=new Set();
+      for(const c of rc)for(const rr of(c2r[c]||[]))if(ar.has(rr))el.add(rr);
+      sol.push(r);
+      if(search(new Set([...ac].filter(c=>!rc.has(c))),new Set([...ar].filter(r=>!el.has(r))))) return true;
+      sol.pop();
+    }
+    return false;
+  }
+  const ac=new Set();
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(boardState[r][c]<0) ac.add(String(r*COLS+c));
+  for(let p=0;p<PIECES.length;p++) if(!placedState[p]) ac.add(String(ROWS*COLS+p));
+  const ar=new Set(rows.map((_,i)=>i));
+  return search(ac,ar)?sol.map(i=>rows[i]):null;
+}
+
+function doSolve(){
+  setStatus('SOLVING…','Running Algorithm X…');
+  setTimeout(()=>{
+    const sol=solve(board,placed);
+    if(!sol){setStatus('❌ NO SOLUTION','Cannot solve from\ncurrent state.');return;}
+    solution=sol; hintStep=sol.length;
+    sol.forEach(e=>{
+      e.cov.forEach(([x,y])=>board[e.oy+y][e.ox+x]=e.pid);
+      placed[e.pid]=true;
+      cur3d[e.pid]=e.orient;
+    });
+    refreshCards(); drawBoard();
+    document.getElementById('hintC').textContent='10/10';
+    setStatus('✅ SOLVED!','All pieces placed!');
+  },30);
+}
+
+function doHint(){
+  if(!solution){
+    const sol=solve(board,placed);
+    if(!sol){setStatus('❌ NO SOLUTION','Cannot solve from\ncurrent state.');return;}
+    solution=sol; hintStep=0;
+  }
+  const rem=solution.filter(e=>!placed[e.pid]);
+  if(!rem.length){setStatus('✅ DONE','All pieces placed!');return;}
+  const e=rem[0];
+  e.cov.forEach(([x,y])=>board[e.oy+y][e.ox+x]=e.pid);
+  placed[e.pid]=true;
+  cur3d[e.pid]=e.orient;
+  hintStep++;
+  const n=placed.filter(Boolean).length;
+  document.getElementById('hintC').textContent=n+'/10';
+  refreshCards(); drawBoard();
+  setStatus('💡 HINT '+n+'/10',PIECES[e.pid].name+' placed!');
+}
+
+function doClear(){
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) board[r][c]=-1;
+  placed.fill(false); selPiece=-1; solution=null; hintStep=0;
+  cur3d=PIECES.map(p=>p.cells.map(c=>[...c]));
+  document.getElementById('hintC').textContent='0/10';
+  refreshCards(); drawBoard();
+  setStatus('CLEARED','Board reset.\nSelect a piece to begin.');
+}
+
+buildFigList(); drawBoard();
+</script>
+</body>
+</html>
