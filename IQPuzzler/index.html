@@ -12,15 +12,15 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 20%,rg
 header{text-align:center;margin-bottom:20px;}
 header h1{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;background:linear-gradient(135deg,#00d4ff,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 header p{color:var(--text-dim);font-size:0.8rem;letter-spacing:0.2em;text-transform:uppercase;margin-top:4px;}
-.layout{display:grid;grid-template-columns:185px 1fr 155px;gap:18px;width:100%;max-width:980px;align-items:start;}
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 4px 24px rgba(0,0,0,0.4);}
-.panel-title{font-family:'Orbitron',monospace;font-size:0.58rem;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);}
-.fig-list{display:flex;flex-direction:column;gap:7px;}
-.fig-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;transition:all 0.2s;}
+.layout{display:grid;grid-template-columns:160px 1fr 155px;gap:18px;width:100%;max-width:980px;align-items:start;}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;box-shadow:0 4px 24px rgba(0,0,0,0.4);}
+.panel-title{font-family:'Orbitron',monospace;font-size:0.58rem;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.fig-list{display:flex;flex-direction:column;gap:4px;}
+.fig-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 7px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:7px;}
 .fig-card:hover{border-color:var(--accent);box-shadow:var(--glow);}
 .fig-card.selected{border-color:var(--accent);box-shadow:var(--glow);background:rgba(0,212,255,0.08);}
 .fig-card.placed{opacity:0.3;pointer-events:none;}
-.fig-name{font-family:'Orbitron',monospace;font-size:0.52rem;color:var(--text-dim);margin-bottom:5px;letter-spacing:0.08em;}
+.fig-name{font-family:'Orbitron',monospace;font-size:0.48rem;color:var(--text-dim);letter-spacing:0.06em;white-space:nowrap;}
 .board-wrap{display:flex;justify-content:center;}
 #boardCanvas{border-radius:10px;display:block;cursor:crosshair;}
 .controls{display:flex;flex-direction:column;gap:10px;}
@@ -51,20 +51,21 @@ kbd{background:var(--surface2);border:1px solid var(--border);border-radius:4px;
   <div class="panel">
     <div class="panel-title">Board — 5 × 10</div>
     <div class="board-wrap"><canvas id="boardCanvas"></canvas></div>
-    <div class="kbd-hint"><kbd>R</kbd> rotate &nbsp;<kbd>F</kbd> flip &nbsp;<kbd>Esc</kbd> deselect</div>
+    <div class="kbd-hint"><kbd>↑↓←→</kbd> rotate &nbsp;<kbd>Esc</kbd> deselect</div>
   </div>
   <div class="controls">
     <div class="panel">
       <div class="panel-title">Orientation</div>
-      <div class="rot-row">
-        <button class="btn-rot" onclick="doRot('X+')">X↻</button>
-        <button class="btn-rot" onclick="doRot('Y+')">Y↻</button>
-        <button class="btn-rot" onclick="doRot('Z+')">Z↻</button>
-      </div>
-      <div class="rot-row">
-        <button class="btn-rot" onclick="doRot('X-')">X↺</button>
-        <button class="btn-rot" onclick="doRot('Y-')">Y↺</button>
-        <button class="btn-rot" onclick="doRot('Z-')">Z↺</button>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:auto auto auto;gap:4px;align-items:center;justify-items:center">
+        <div></div>
+        <button class="btn-rot" onclick="doRot('up')" style="font-size:1rem;padding:6px 14px">↑</button>
+        <div></div>
+        <button class="btn-rot" onclick="doRot('left')" style="font-size:1rem;padding:6px 10px">←</button>
+        <div id="selPreviewWrap" style="min-width:60px;min-height:44px;display:flex;align-items:center;justify-content:center"></div>
+        <button class="btn-rot" onclick="doRot('right')" style="font-size:1rem;padding:6px 10px">→</button>
+        <div></div>
+        <button class="btn-rot" onclick="doRot('down')" style="font-size:1rem;padding:6px 14px">↓</button>
+        <div></div>
       </div>
     </div>
     <div class="panel">
@@ -214,7 +215,7 @@ function drawBoard(){
   // Ghost preview
   if(selPiece>=0&&hoverCell){
     const[hc,hr]=hoverCell;
-    const cov=coverage(norm(cur3d[selPiece]));
+    const cov=coverage(cur3d[selPiece]);
     if(cov.length>0){
       const maxX=Math.max(...cov.map(([x])=>x)),maxY=Math.max(...cov.map(([,y])=>y));
       const ox=Math.max(0,Math.min(hc,COLS-1-maxX));
@@ -229,93 +230,54 @@ function drawBoard(){
   }
 }
 
-// ── Piece preview canvas — isometric 3D ──
-function drawPreview(canv,pid){
-  const cells=norm(PIECES[pid].cells);
-  // Isometric projection: x right-down, y left-down, z up
-  const S=14;       // grid step in iso space
-  const ISO_X=S;    // iso x step → screen (+x, +y*0.5)
-  const ISO_Y=S*0.6;// iso y step → screen (-x*0.5, +y*0.5)
-  const LIFT=S*1.1; // z=1 lifts up by this amount
-  const R=6;        // ball radius
-  const PAD=10;
-
-  // Compute screen positions for all balls
-  function isoPos(x,y,z){
-    const sx= x*ISO_X - y*ISO_X*0.5;
-    const sy= x*ISO_Y*0.5 + y*ISO_Y - z*LIFT;
-    return[sx,sy];
-  }
-
-  // Find bounding box
-  let minSx=Infinity,maxSx=-Infinity,minSy=Infinity,maxSy=-Infinity;
-  cells.forEach(([x,y,z])=>{
-    const[sx,sy]=isoPos(x,y,z);
-    minSx=Math.min(minSx,sx-R); maxSx=Math.max(maxSx,sx+R);
-    minSy=Math.min(minSy,sy-R); maxSy=Math.max(maxSy,sy+R);
-  });
-  canv.width =Math.ceil(maxSx-minSx)+PAD*2;
-  canv.height=Math.ceil(maxSy-minSy)+PAD*2;
-  const c=canv.getContext('2d');
-  c.clearRect(0,0,canv.width,canv.height);
-
-  const color=PIECES[pid].color;
-
-  // Draw shadow for z=1 balls first
+// ── Shared 3D preview renderer ──
+function drawPreviewCells(canv, cells, color){
+  cells=norm(cells);
+  const S=13, iX=[S,S*0.5], iY=[-S,S*0.5], iZ=[0,-S*1.1];
+  const R=5, PAD=8;
+  function isoPos(x,y,z){return[x*iX[0]+y*iY[0]+z*iZ[0],x*iX[1]+y*iY[1]+z*iZ[1]];}
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  cells.forEach(([x,y,z])=>{const[sx,sy]=isoPos(x,y,z);minX=Math.min(minX,sx-R-2);maxX=Math.max(maxX,sx+R+2);minY=Math.min(minY,sy-R-2);maxY=Math.max(maxY,sy+R+2);});
+  canv.width=Math.ceil(maxX-minX)+PAD*2; canv.height=Math.ceil(maxY-minY)+PAD*2;
+  const c=canv.getContext('2d'); c.clearRect(0,0,canv.width,canv.height);
+  function sp(x,y,z){const[sx,sy]=isoPos(x,y,z);return[sx-minX+PAD,sy-minY+PAD];}
+  const sorted=[...cells].sort((a,b)=>b[1]-a[1]||b[0]-a[0]||a[2]-b[2]);
   cells.filter(([,,z])=>z===1).forEach(([x,y])=>{
-    const[sx,sy]=isoPos(x,y,0);
-    const cx=sx-minSx+PAD, cy=sy-minSy+PAD;
-    c.save();
-    c.beginPath();c.ellipse(cx,cy+R*0.3,R*0.7,R*0.22,0,0,Math.PI*2);
-    c.fillStyle='rgba(0,0,0,0.35)';c.fill();
+    const[ax,ay]=sp(x,y,0),[bx,by]=sp(x,y,1);
+    c.save();c.beginPath();c.moveTo(ax,ay);c.lineTo(bx,by);
+    const rg=c.createLinearGradient(ax,ay,bx,by);rg.addColorStop(0,shade(color,-40));rg.addColorStop(1,shade(color,20));
+    c.strokeStyle=rg;c.lineWidth=3;c.lineCap='round';c.stroke();
+    c.beginPath();c.moveTo(ax-0.8,ay);c.lineTo(bx-0.8,by);c.strokeStyle='rgba(255,255,255,0.2)';c.lineWidth=1;c.stroke();
     c.restore();
   });
-
-  // Sort balls: paint z=0 first, then z=1 on top
-  const sorted=[...cells].sort((a,b)=>a[2]-b[2]);
-
+  sorted.filter(([,,z])=>z===0).forEach(([x,y,z])=>{
+    const[cx,cy]=sp(x,y,z);c.save();c.beginPath();c.ellipse(cx+1,cy+R*0.55,R*0.82,R*0.28,0,0,Math.PI*2);c.fillStyle='rgba(0,0,0,0.28)';c.fill();c.restore();
+  });
   sorted.forEach(([x,y,z])=>{
-    const[sx,sy]=isoPos(x,y,z);
-    const cx=sx-minSx+PAD, cy=sy-minSy+PAD;
-    const r=z===1?R*0.92:R;
-
-    // Subtle connection line from z=1 down to z=0
-    if(z===1){
-      const[bx,by]=isoPos(x,y,0);
-      const bcx=bx-minSx+PAD, bcy=by-minSy+PAD;
-      c.save();
-      c.beginPath();c.moveTo(cx,cy+r);c.lineTo(bcx,bcy-R*0.6);
-      c.strokeStyle='rgba(255,255,255,0.15)';c.lineWidth=1.5;c.stroke();
-      c.restore();
-    }
-
-    // Ball gradient
-    const g=c.createRadialGradient(cx-r*0.35,cy-r*0.35,r*0.05,cx,cy,r);
-    g.addColorStop(0,'rgba(255,255,255,0.75)');
-    g.addColorStop(0.3,color);
-    g.addColorStop(1,shade(color,-60));
-
-    c.save();
-    if(z===1){c.shadowColor=color;c.shadowBlur=8;}
-    c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
-    c.fillStyle=g;c.fill();
-
-    // Rim for elevated ball
-    if(z===1){
-      c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
-      c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=1;c.stroke();
-    }
-    c.restore();
+    const[cx,cy]=sp(x,y,z),r=z===1?R*0.95:R,isEl=z===1;
+    if(isEl){c.save();c.shadowColor=color;c.shadowBlur=12;c.beginPath();c.arc(cx,cy,r+1,0,Math.PI*2);c.strokeStyle=color;c.lineWidth=0.5;c.stroke();c.restore();}
+    const g=c.createRadialGradient(cx-r*0.38,cy-r*0.38,r*0.04,cx+r*0.1,cy+r*0.1,r*1.05);
+    g.addColorStop(0,'rgba(255,255,255,0.85)');g.addColorStop(0.18,shade(color,30));g.addColorStop(0.55,color);g.addColorStop(1,shade(color,-65));
+    c.save();if(isEl){c.shadowColor=color;c.shadowBlur=10;}c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.fillStyle=g;c.fill();c.restore();
+    const sg=c.createRadialGradient(cx-r*0.3,cy-r*0.33,0,cx-r*0.3,cy-r*0.33,r*0.38);sg.addColorStop(0,'rgba(255,255,255,0.6)');sg.addColorStop(1,'rgba(255,255,255,0)');
+    c.save();c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.fillStyle=sg;c.fill();c.restore();
+    if(isEl){c.save();c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.strokeStyle='rgba(255,255,255,0.45)';c.lineWidth=1.2;c.stroke();c.restore();}
   });
+}
+
+// ── Piece preview canvas — isometric 3D improved ──
+function drawPreview(canv,pid){
+  drawPreviewCells(canv, PIECES[pid].cells, PIECES[pid].color);
 }
 
 function buildFigList(){
   const list=document.getElementById('figList'); list.innerHTML='';
   PIECES.forEach((p,i)=>{
     const card=document.createElement('div'); card.className='fig-card'; card.id='c'+i;
-    const nm=document.createElement('div'); nm.className='fig-name'; nm.textContent=p.name;
     const prev=document.createElement('canvas'); prev.id='p'+i;
-    card.append(nm,prev); drawPreview(prev,i);
+    drawPreview(prev,i);
+    const nm=document.createElement('div'); nm.className='fig-name'; nm.textContent=p.name;
+    card.append(prev,nm);
     card.onclick=()=>selectPiece(i);
     list.appendChild(card);
   });
@@ -341,6 +303,7 @@ cv.addEventListener('click',e=>{
   for(const[x,y] of cov) board[oy+y][ox+x]=selPiece;
   placed[selPiece]=true;
   selPiece=-1;
+  document.getElementById('selPreviewWrap').innerHTML='';
   refreshCards(); drawBoard();
   const n=placed.filter(Boolean).length;
   document.getElementById('hintC').textContent=n+'/10';
@@ -349,27 +312,42 @@ cv.addEventListener('click',e=>{
 });
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='r'||e.key==='R') doRot('Z+');
-  if(e.key==='f'||e.key==='F') doRot('X+');
-  if(e.key==='Escape'){selPiece=-1;refreshCards();setStatus('READY','Deselected.');drawBoard();}
+  if(e.key==='ArrowUp'){e.preventDefault();doRot('up');}
+  if(e.key==='ArrowDown'){e.preventDefault();doRot('down');}
+  if(e.key==='ArrowLeft'){e.preventDefault();doRot('left');}
+  if(e.key==='ArrowRight'){e.preventDefault();doRot('right');}
+  if(e.key==='Escape'){selPiece=-1;document.getElementById('selPreviewWrap').innerHTML='';refreshCards();setStatus('READY','Deselected.');drawBoard();}
 });
 
 function selectPiece(i){
   if(placed[i]) return;
   selPiece=i;
   refreshCards();
-  setStatus('SELECTED',PIECES[i].name+'\nClick board to place.\nR=rotate  F=flip');
+  updateSelPreview();
+  setStatus('SELECTED',PIECES[i].name+'\nClick board to place.\n↑↓←→ to rotate');
   drawBoard();
 }
 
-function doRot(axis){
+function updateSelPreview(){
+  const wrap=document.getElementById('selPreviewWrap');
+  wrap.innerHTML='';
   if(selPiece<0) return;
-  // Find next valid orientation by rotating
+  const canv=document.createElement('canvas');
+  drawPreviewCells(canv, cur3d[selPiece], PIECES[selPiece].color);
+  wrap.appendChild(canv);
+}
+
+function doRot(dir){
+  if(selPiece<0) return;
+  // up/down = rotate around X axis (tilts forward/back)
+  // left/right = rotate around Z axis (spins in plane)
+  const axisMap={up:'X+', down:'X-', left:'Z-', right:'Z+'};
+  const axis=axisMap[dir];
   let next=applyRot(cur3d[selPiece],axis);
-  // If not valid, keep rotating until valid or full cycle
   let tries=0;
   while(!isValid(next)&&tries<12){next=applyRot(next,axis);tries++;}
   if(isValid(next)) cur3d[selPiece]=next;
+  updateSelPreview();
   drawBoard();
 }
 
